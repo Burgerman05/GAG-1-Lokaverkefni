@@ -215,3 +215,21 @@ ORDER BY
 """
 Service 3: get_monthly_plant_loss_ratios_data()
 """
+
+
+def get_monthly_plant_loss_ratios_data(
+    from_date: datetime, to_date: datetime, db: Session
+) -> list[MonthlyPlantLossRatiosModel]:
+    sql = text("""
+SELECT
+    power_plant_source,
+    AVG((total_production - total_substation_input)::FLOAT / NULLIF(total_production, 0)) AS plant_to_substation_loss_ratio,
+    AVG((total_production - total_withdrawal)::FLOAT / NULLIF(total_production, 0)) AS total_system_loss_ratio
+FROM raforka_legacy.monthly_plant_losses
+WHERE timi BETWEEN :from_date AND :to_date
+GROUP BY power_plant_source
+ORDER BY power_plant_source;
+        """)
+
+    results = db.execute(sql, {"from_date": from_date, "to_date": to_date}).all()
+    return [MonthlyPlantLossRatiosModel.model_validate_json(**row) for row in results]

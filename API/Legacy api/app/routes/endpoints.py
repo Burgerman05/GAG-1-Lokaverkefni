@@ -119,3 +119,20 @@ def get_monthly_company_usage(
 """
 Endpoint 3: get_monthly_plant_loss_ratios()
 """
+
+
+@router.get(
+    "/monthly_plant_loss_ratios", response_model=list[MonthlyPlantLossRatiosModel]
+)
+def get_monthly_plant_loss_ratios(
+    from_date: datetime | None = None,
+    to_date: datetime | None = None,
+    db: Session = Depends(get_orkuflaedi_session),
+):
+    print(f"Calling [GET] /{db_name}/monthly_plant_loss_ratios")
+    from_date, to_date = validate_date_range_helper(
+        from_date, to_date, datetime(2025, 1, 1, 0, 0), datetime(2026, 1, 1, 0, 0)
+    )
+
+    results = get_monthly_plant_loss_ratios_data(from_date, to_date, db)
+    return results

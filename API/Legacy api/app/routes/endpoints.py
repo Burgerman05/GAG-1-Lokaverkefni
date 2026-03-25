@@ -100,6 +100,22 @@ def get_monthly_energy_flow(
 Endpoint 2: get_monthly_company_usage()
 """
 
+
+@router.get("/monthly_company_usage", response_model=list[MonthlyCompanyUsageModel])
+def get_monthly_company_usage(
+    from_date: datetime | None = None,
+    to_date: datetime | None = None,
+    db: Session = Depends(get_orkuflaedi_session),
+):
+    print(f"Calling [GET] /{db_name}/monthly_company_usage")
+    from_date, to_date = validate_date_range_helper(
+        from_date, to_date, datetime(2025, 1, 1, 0, 0), datetime(2026, 1, 1, 0, 0)
+    )
+
+    results = get_monthly_company_usage_data(from_date, to_date, db)
+    return results
+
+
 """
 Endpoint 3: get_monthly_plant_loss_ratios()
 """

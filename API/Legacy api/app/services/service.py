@@ -181,6 +181,37 @@ ORDER BY
 Service 2: get_monthly_company_usage_data()
 """
 
+
+def get_monthly_company_usage_data(
+    from_date: datetime, to_date: datetime, db: Session
+) -> list[MonthlyCompanyUsageModel]:
+    sql = text("""
+SELECT
+    om.eining_heiti AS power_plant_source,
+    EXTRACT(YEAR FROM om.timi) AS year,
+    EXTRACT(MONTH FROM om.timi) AS month,
+    om.notandi_heiti AS customer_name,
+    SUM(om.gildi_kwh) AS total_kwh
+FROM raforka_legacy.orku_maelingar om
+WHERE
+    om.timi BETWEEN :from_date AND :to_date
+    AND om.tegund_maelingar = 'Úttekt'
+    AND om.notandi_heiti IS NOT NULL
+GROUP BY
+    om.eining_heiti,
+    EXTRACT(YEAR FROM om.timi),
+    EXTRACT(MONTH FROM om.timi),
+    om.notandi_heiti
+ORDER BY
+    om.eining_heiti ASC,
+    month ASC,
+    om.notandi_heiti ASC;
+    """)
+
+    results = db.execute(sql, {"from_date": from_date, "to_date": to_date}).all()
+    return [MonthlyCompanyUsageModel.model_validate_json(**row) for row in results]
+
+
 """
 Service 3: get_monthly_plant_loss_ratios_data()
 """

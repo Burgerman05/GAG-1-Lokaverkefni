@@ -4,8 +4,8 @@ SELECT
     O.heiti AS power_plante,
     EXTRACT(YEAR from M.timi) AS YEAR,
     EXTRACT(MONTH from M.timi) AS MONTH,
-    T.tegund AS test_mesurement
-    SUM(gildi_kwh) AS total_kwh
+    T.tegund AS test_mesurement,
+    SUM(M.gildi_kwh) AS total_kwh
 FROM mælingar M
 JOIN orku_einingar O ON M.orku_eining_id = O.id
 JOIN tegund_mælingar T ON M.tegund_mælingar_id = T.id
@@ -14,11 +14,12 @@ GROUP BY
     O.heiti,
     year,
     month,
-    T.tegund
+    T.tegund,
+	M.gildi_kwh
 ORDER BY
     O.heiti,
     month ASC,
-    total_kwh DESC;
+    M.gildi_kwh DESC;
 
 --2
 SELECT
@@ -68,6 +69,6 @@ SELECT --frá Enok breitti bara FROM?
     AVG((total_production - total_substation_input)::FLOAT / NULLIF(total_production, 0)) AS plant_to_substation_loss_ratio,
     AVG((total_production - total_withdrawal)::FLOAT / NULLIF(total_production, 0)) AS total_system_loss_ratio
 FROM monthly_plant_losses
-WHERE EXTRACT(YEAR FROM timi) = 2025
+WHERE year = 2025
 GROUP BY power_plant_source
 ORDER BY power_plant_source;

@@ -1,107 +1,90 @@
 -- Task C3
+DROP SCHEMA IF EXISTS raforka_updated CASCADE;
 
-CREATE TYPE station_type_enum AS ENUM (
-    'power_plant',
-    'substation'
+SET client_encoding = 'UTF8';
+
+CREATE SCHEMA raforka_updated;
+
+CREATE TABLE raforka_updated.eigandi (
+    ID SERIAL PRIMARY KEY,
+    heiti VARCHAR(100) NOT NULL UNIQUE
 );
 
+CREATE TABLE raforka_updated.stod (
+    ID SERIAL PRIMARY KEY,
+    heiti VARCHAR(100) NOT NULL,
+    tegund_stod VARCHAR(100) NOT NULL,
+    eigandi_ID INTEGER NOT NULL REFERENCES raforka_updated.eigandi(ID),
+    uppsetning DATE,
 
--- Orku_einingar table (Energy units)
-CREATE TABLE orku_einingar (
-    id SERIAL PRIMARY KEY,
-    heiti VARCHAR(100) NOT NULL,  -- Name
-    tegund_stod station_type_enum,  -- Station type
-    x_hnit NUMERIC(10, 6),  -- X coordinate
-    y_hnit NUMERIC(10, 6),  -- Y coordinate
-    uppsetning DATE  -- Installation date
+    x_hnit DOUBLE PRECISION,
+    y_hnit DOUBLE PRECISION,
+
+    tengd_stod_ID INTEGER REFERENCES raforka_updated.stod(ID),
+    CONSTRAINT check_unique_ids CHECK (ID <> tengd_stod_ID)
 );
 
--- Tegund_mælingar table (Measurement types)
-CREATE TABLE tegund_mælingar (
-    id SERIAL PRIMARY KEY,
-    tegund VARCHAR(50) NOT NULL,  -- Type
-    lysing TEXT  -- Description
+CREATE TABLE raforka_updated.power_plant (
+    ID INTEGER PRIMARY KEY REFERENCES raforka_updated.stod(ID)
 );
 
--- Notandi table (Customers/Users)
-CREATE TABLE notandi (
-    id SERIAL PRIMARY KEY,
-    notandi_heiti VARCHAR(100) NOT NULL UNIQUE  -- Customer name
+CREATE TABLE raforka_updated.substation (
+    ID INTEGER PRIMARY KEY REFERENCES raforka_updated.stod(ID)
 );
 
--- Stod table (Stations)
-CREATE TABLE stod (
-    id SERIAL PRIMARY KEY,
-    heiti VARCHAR(100) NOT NULL,  -- Name
-    x_hnit NUMERIC(10, 6),  -- X coordinate
-    y_hnit NUMERIC(10, 6),  -- Y coordinate
-    tegnd_stod VARCHAR(50),  -- Station type description
-    uppsetning DATE  -- Installation date
+CREATE TABLE raforka_updated.notendur_skraning (
+    ID SERIAL PRIMARY KEY,
+    heiti VARCHAR(100) NOT NULL UNIQUE,
+    kennitala VARCHAR(10) NOT NULL UNIQUE,
+    eigandi_ID INTEGER NOT NULL REFERENCES raforka_updated.eigandi(ID),
+    ar_stofnad INTEGER NOT NULL,
+
+    x_hnit DOUBLE PRECISION,
+    y_hnit DOUBLE PRECISION
 );
 
--- Mælingar table (Measurements) - Connects to Orku_einingar
-CREATE TABLE mælingar (
-    id SERIAL PRIMARY KEY,
-    orku_eining_id INTEGER NOT NULL REFERENCES orku_einingar(id),
-    tegund_mælingar_id INTEGER NOT NULL REFERENCES tegund_mælingar(id),
-    notandi_id INTEGER REFERENCES notandi(id),  -- Optional, for customer measurements
-    gildi_kwh NUMERIC(15, 6) NOT NULL,  -- Value in kWh
-    timi TIMESTAMP NOT NULL,  -- Time of measurement
-    sendandi_mælingar VARCHAR(100),  -- Sender of measurement
-    has_measurement BOOLEAN DEFAULT TRUE
+CREATE TABLE raforka_updated.maelingar (
+    ID SERIAL PRIMARY KEY,
+    power_plant_ID INTEGER REFERENCES raforka_updated.power_plant(ID),
+    gildi_kwh NUMERIC NOT NULL,
+    timi TIMESTAMP without time zone NOT NULL
 );
 
--- Station keeps track of orku_einingar (1:1)
-CREATE TABLE stod_orku_track (
-    stod_id INTEGER PRIMARY KEY REFERENCES stod(id),
-    orku_eining_id INTEGER UNIQUE NOT NULL REFERENCES orku_einingar(id),
-    track_since DATE DEFAULT CURRENT_DATE
+CREATE TABLE raforka_updated.uttekt (
+    ID SERIAL PRIMARY KEY REFERENCES raforka_updated.maelingar(ID),
+    sendandi_maelingar INTEGER REFERENCES raforka_updated.substation(ID),
+    notandi_id INTEGER REFERENCES raforka_updated.eigandi(ID)
+);
+CREATE TABLE raforka_updated.innmotun (
+    ID SERIAL PRIMARY KEY REFERENCES raforka_updated.maelingar(ID),
+    sendandi_maelingar INTEGER REFERENCES raforka_updated.substation(ID)
+);
+CREATE TABLE raforka_updated.framleidsla (
+    ID SERIAL PRIMARY KEY REFERENCES raforka_updated.maelingar(ID),
+    sendandi_maelingar INTEGER REFERENCES raforka_updated.eigandi(ID)
 );
 
--- Power plants inject substations (N:1)
-CREATE TABLE power_plant_injection (
-    id SERIAL PRIMARY KEY,
-    power_plant_id INTEGER NOT NULL REFERENCES orku_einingar(id),
-    substation_id INTEGER NOT NULL REFERENCES stod(id),
-    inject_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    loss_percentage NUMERIC(5, 2)  -- Optional loss tracking
+CREATE OR REPLACE VIEW raforka_updated.allar_maelingar AS
+SELECT
+    PP.heiti,
+    M.timi,
+    M.gildi_kwh,
+    CASE
+        WHEN EXISTS (SELECT 1 FROM raforka_updated.uttekt U WHERE U.ID = M.ID) THEN 'Úttekt'
+        WHEN EXISTS (SELECT 1 FROM raforka_updated.innmotun I WHERE I.ID = M.ID) THEN 'Innmötun'
+        WHEN EXISTS (SELECT 1 FROM raforka_updated.framleidsla F WHERE F.ID = M.ID) THEN 'Framleiðsla'
+        ELSE 'Óþekkt'
+    END AS tegund_maelingar
+FROM raforka_updated.maelingar M
+LEFT JOIN raforka_updated.stod PP ON M.power_plant_ID = PP.ID;
+
+CREATE TABLE raforka_updated.test_measurement (
+    id integer NOT NULL,
+    timi timestamp without time zone,
+    value numeric
 );
 
--- Customer withdraws energy from substations (1:N)
-CREATE TABLE customer_withdrawal (
-    id SERIAL PRIMARY KEY,
-    customer_id INTEGER NOT NULL REFERENCES notandi(id),
-    substation_id INTEGER NOT NULL REFERENCES stod(id),
-    withdraw_m NUMERIC(15, 6),  -- Withdrawal amount
-    withdrawal_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-
-
--- Mesurments has Measurement type (1:N) - Additional mapping table
-CREATE TABLE measurements_type_mapping (
-    id SERIAL PRIMARY KEY,
-    measurement_id INTEGER NOT NULL REFERENCES mælingar(id),
-    measurement_type_id INTEGER NOT NULL REFERENCES tegund_mælingar(id),
-    measure_value NUMERIC(15, 6),
-    measure_timestamp TIMESTAMP
-);
-
--- indexes
-
-CREATE INDEX idx_mælingar_orku_eining ON mælingar(orku_eining_id);
-CREATE INDEX idx_mælingar_tegund ON mælingar(tegund_mælingar_id);
-CREATE INDEX idx_mælingar_notandi ON mælingar(notandi_id);
-CREATE INDEX idx_mælingar_timi ON mælingar(timi);
-CREATE INDEX idx_stod_heiti ON stod(heiti);
-CREATE INDEX idx_orku_einingar_heiti ON orku_einingar(heiti);
-CREATE INDEX idx_notandi_heiti ON notandi(notandi_heiti);
-CREATE INDEX idx_power_plant_injection_plant ON power_plant_injection(power_plant_id);
-CREATE INDEX idx_customer_withdrawal_customer ON customer_withdrawal(customer_id);
-
--- Insert measurement types
-INSERT INTO tegund_mælingar (tegund, lysing) VALUES
-    ('Framleiðsla', 'Production measurement'),
-    ('Innmötun', 'Injection measurement'),
-    ('Úttekt', 'Withdrawal measurement');
 -- Task D1
+
+-- Indexes
+CREATE INDEX idx_maelingar ON raforka_updated.maelingar (timi, power_plant_ID);

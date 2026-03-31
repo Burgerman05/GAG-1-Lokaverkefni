@@ -53,7 +53,6 @@ SELECT
     SUM(CASE WHEN tegund_maelingar = 'Innmötun' THEN gildi_kwh ELSE 0 END) AS total_substation_input,
     SUM(CASE WHEN tegund_maelingar = 'Úttekt' THEN gildi_kwh ELSE 0 END) AS total_withdrawal
 FROM raforka_legacy.orku_maelingar
-WHERE EXTRACT(YEAR FROM timi) = 2025
 GROUP BY
     eining_heiti,
     EXTRACT(YEAR FROM timi),
@@ -63,5 +62,6 @@ SELECT
     AVG((total_production - total_substation_input)::FLOAT / NULLIF(total_production, 0)) AS plant_to_substation_loss_ratio,
     AVG((total_production - total_withdrawal)::FLOAT / NULLIF(total_production, 0)) AS total_system_loss_ratio
 FROM raforka_legacy.monthly_plant_losses
+WHERE EXTRACT(YEAR FROM timi) = 2025
 GROUP BY power_plant_source
 ORDER BY power_plant_source;

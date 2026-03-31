@@ -1,7 +1,8 @@
 # Task C5
 from datetime import datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
 import app.services.service as service
@@ -78,6 +79,18 @@ def get_monthly_plant_loss_ratios(
 """
 Endpoint 4: insert_measurements()
 """
+
+
+@router.post("/insert_measurements")
+async def insert_measurements(
+    mode: Literal["single", "bulk", "fallback"] = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_orkuflaedi_session),
+):
+    print(f"Calling [POST] /{db_name}/insert_measurements")
+    result = await service.insert_measurements_data(file, db, mode)
+    return result
+
 
 # Task F1
 """

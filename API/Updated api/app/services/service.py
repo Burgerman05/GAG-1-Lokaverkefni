@@ -1,13 +1,18 @@
 # Task C5
 
 from datetime import datetime
+from typing import Literal
 
+from fastapi import HTTPException, UploadFile
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.monthly_company_usage_model import MonthlyCompanyUsageModel
 from app.models.monthly_energy_flow_model import MonthlyPlantEnergyFlowModel
 from app.models.monthly_plant_loss_ratios import MonthlyPlantLossRatiosModel
+from app.parsers.parse_old_measurement_data import parse_old_measurements
+from app.utils.migrate_old_data import insert_rows, insert_single_row
+from app.utils.validate_file_type import validate_file_type
 
 """
 Service 1: get_monthly_energy_flow_data()
@@ -115,6 +120,52 @@ ORDER BY
 """
 Service 4: insert_measurements_data()
 """
+
+
+async def insert_measurements_data(
+    file: UploadFile, db: Session, mode: Literal["single", "bulk", "fallback"] = "bulk"
+):
+    validate_file_type(file, allowed_extensions=[".csv"])
+
+    raw_data = await file.read()
+    raw_text = raw_data.decode()
+
+    measurements = parse_old_measurements(raw_text)
+
+    if not measurements:
+        raise HTTPException(status_code=400, detail="No valid rows found")
+
+    rows_processed = 0
+
+    try:
+        match mode:
+            case "single":
+                for row in measurements:
+                    insert_single_row(row, db)
+                db.commit()
+                rows_processed += 1
+            case "bulk":
+                rows_processed = insert_rows(measurements, db)
+                db.commit()
+            case "fallback":
+                for row in measurements:
+                    try:
+                        insert_single_row(row, db)
+                        db.flush()
+                        rows_processed += 1
+                    except Exception:
+                        db.rollback()
+                        continue
+                db.commit()
+            case _:
+                raise HTTPException(status_code=400, detail="Invalid mode")
+
+        return {"status": 200, "rows_processed": rows_processed, "mode": mode}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Task F1
 

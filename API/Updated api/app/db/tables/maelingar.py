@@ -12,7 +12,7 @@ class Maelingar(Base):
     __tablename__ = "maelingar"
     __table_args__ = (Index("idx_maelingar", "timi", "power_plant_id"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     power_plant_id: Mapped[int] = mapped_column(
         ForeignKey("power_plant.ID"), nullable=False
     )
@@ -26,7 +26,7 @@ class Maelingar(Base):
         "polymorphic_identity": "maelingar",
     }
 
-    power_plant: Mapped[stod.PowerPlant] = relationship(back_populates="maelingar")
+    power_plant: Mapped["stod.PowerPlant"] = relationship(back_populates="maelingar")
 
 
 class Uttekt(Maelingar):

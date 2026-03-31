@@ -17,4 +17,4 @@ class NotendurSkraning(Base):
     x_hnit: Mapped[float] = mapped_column(DOUBLE_PRECISION, nullable=False)
     y_hnit: Mapped[float] = mapped_column(DOUBLE_PRECISION, nullable=False)
 
-    eigandi: Mapped[eigandi.Eigandi] = relationship(back_populates="notendur")
+    eigandi: Mapped["eigandi.Eigandi"] = relationship(back_populates="notendur")

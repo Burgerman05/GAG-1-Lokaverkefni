@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Optional
 
 from sqlalchemy import (
     DOUBLE_PRECISION,
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.schema import CheckConstraint
 
 import app.db.tables.eigandi as eigandi
+import app.db.tables.maelingar as maelingar
 from app.db.base import Base
 
 
@@ -34,14 +36,18 @@ class Stod(Base):
         "polymorphic_on": tegund_stod,
     }
 
-    eigandi: Mapped[eigandi.Eigandi] = relationship(back_populates="stodvar")
-    tengd_stod: Mapped["Stod" | None] = relationship(remote_side=[ID])
+    eigandi: Mapped["eigandi.Eigandi"] = relationship(back_populates="stodvar")
+    tengd_stod: Mapped[Optional["Stod"]] = relationship(remote_side=[ID])
 
 
 class PowerPlant(Stod):
     __tablename__ = "power_plant"
 
     ID: Mapped[int] = mapped_column(ForeignKey("stod.ID"), primary_key=True)
+
+    maelingar: Mapped[list["maelingar.Maelingar"]] = relationship(
+        back_populates="power_plant"
+    )
 
     __mapper_args__ = {
         "polymorphic_identity": "power_plant",

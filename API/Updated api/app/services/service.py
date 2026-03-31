@@ -141,9 +141,9 @@ async def insert_measurements_data(
         match mode:
             case "single":
                 for row in measurements:
-                    insert_single_row(row, db)
+                    if insert_single_row(row, db):
+                        rows_processed += 1
                 db.commit()
-                rows_processed += 1
             case "bulk":
                 rows_processed = insert_rows(measurements, db)
                 db.commit()

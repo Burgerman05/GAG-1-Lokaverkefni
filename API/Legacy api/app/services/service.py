@@ -201,11 +201,11 @@ WHERE
     AND om.notandi_heiti IS NOT NULL
 GROUP BY
     om.eining_heiti,
-    EXTRACT(YEAR FROM om.timi),
-    EXTRACT(MONTH FROM om.timi),
+    year,
+    month,
     om.notandi_heiti
 ORDER BY
-    om.eining_heiti ASC,
+    om.eining_heiti,
     month ASC,
     om.notandi_heiti ASC;
     """)
@@ -233,7 +233,7 @@ FROM raforka_legacy.monthly_plant_losses
 WHERE year BETWEEN EXTRACT(YEAR FROM :from_date) AND EXTRACT(YEAR FROM :to_date)
 GROUP BY power_plant_source
 ORDER BY power_plant_source;
-        """)
+""")
 
     results = (
         db.execute(sql, {"from_date": from_date, "to_date": to_date}).mappings().all()

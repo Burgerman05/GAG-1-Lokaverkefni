@@ -62,6 +62,6 @@ SELECT
     AVG((total_production - total_substation_input)::FLOAT / NULLIF(total_production, 0)) AS plant_to_substation_loss_ratio,
     AVG((total_production - total_withdrawal)::FLOAT / NULLIF(total_production, 0)) AS total_system_loss_ratio
 FROM raforka_legacy.monthly_plant_losses
-WHERE EXTRACT(YEAR FROM timi) = 2025
+WHERE year = 2025
 GROUP BY power_plant_source
 ORDER BY power_plant_source;

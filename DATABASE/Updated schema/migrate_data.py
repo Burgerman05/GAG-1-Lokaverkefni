@@ -166,13 +166,18 @@ def migrate_measurements(csv_path: str) -> None:
         # 3. Batch Insert into Base Table (maelingar)
         for row in df_enriched.iter_rows(named=True):
             # Insert base record and get generated ID
+            m_type = row["tegund_maelingar"].strip()
             cursor.execute(
-                """INSERT INTO raforka_updated.maelingar (power_plant_ID, gildi_kwh, timi)
-                   VALUES (%s, %s, %s) RETURNING id""",
-                (row["plant_id"], row["gildi_kwh"], row["timi"]),
+                """INSERT INTO raforka_updated.maelingar (power_plant_ID, gildi_kwh, timi, maeling_type)
+                   VALUES (%s, %s, %s, %s) RETURNING id""",
+                (
+                    row["plant_id"],
+                    row["gildi_kwh"],
+                    row["timi"],
+                    m_type,
+                ),
             )
             new_id = cursor.fetchone()[0]
-            m_type = row["tegund_maelingar"].strip()
 
             # 4. Insert into sub-tables based on type
             if m_type == "Úttekt":
@@ -259,15 +264,13 @@ def migrate_measurements_from_legacy_db() -> None:
         # 4. Iterate and Insert
         for row in df_enriched.iter_rows(named=True):
             # Insert into the base 'maelingar' table first to get the generated ID
+            m_type = row["tegund_maelingar"].strip() if row["tegund_maelingar"] else ""
             cursor.execute(
-                """INSERT INTO raforka_updated.maelingar (power_plant_ID, gildi_kwh, timi)
-                   VALUES (%s, %s, %s) RETURNING id""",
-                (row["plant_id"], row["gildi_kwh"], row["timi"]),
+                """INSERT INTO raforka_updated.maelingar (power_plant_ID, gildi_kwh, timi, maeling_type)
+                   VALUES (%s, %s, %s, %s) RETURNING id""",
+                (row["plant_id"], row["gildi_kwh"], row["timi"], m_type),
             )
             new_measurement_id = cursor.fetchone()[0]
-
-            # Normalize the measurement type for comparison
-            m_type = row["tegund_maelingar"].strip() if row["tegund_maelingar"] else ""
 
             # 5. Route to specialized sub-tables based on legacy 'tegund_maelingar'
             if m_type == "Úttekt":

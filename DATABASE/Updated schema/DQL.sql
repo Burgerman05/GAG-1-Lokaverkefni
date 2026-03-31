@@ -5,7 +5,7 @@ SELECT
     AM.heiti as power_plant_source,
     EXTRACT(YEAR FROM AM.timi) as year,
     EXTRACT(MONTH FROM AM.timi) as month,
-    AM.tegund_maelingar as test_measurement_type,
+    AM.maeling_type as test_measurement_type,
     SUM(AM.gildi_kwh) as total_kwh
 FROM raforka_updated.allar_maelingar AM
 WHERE
@@ -14,7 +14,7 @@ GROUP BY
     AM.heiti,
     year,
     month,
-    AM.tegund_maelingar
+    AM.maeling_type
 ORDER BY
     AM.heiti ASC,
     month ASC,
@@ -51,9 +51,9 @@ SELECT
     AM.heiti as power_plant_source,
     EXTRACT(YEAR FROM AM.timi) AS year,
     EXTRACT(MONTH FROM AM.timi) AS month,
-    SUM(CASE WHEN AM.tegund_maelingar = 'Framleiðsla' THEN AM.gildi_kwh ELSE 0 END) AS total_production,
-    SUM(CASE WHEN AM.tegund_maelingar = 'Innmötun' THEN AM.gildi_kwh ELSE 0 END) AS total_substation_input,
-    SUM(CASE WHEN AM.tegund_maelingar = 'Úttekt' THEN AM.gildi_kwh ELSE 0 END) AS total_withdrawal
+    SUM(CASE WHEN AM.maeling_type = 'Framleiðsla' THEN AM.gildi_kwh ELSE 0 END) AS total_production,
+    SUM(CASE WHEN AM.maeling_type = 'Innmötun' THEN AM.gildi_kwh ELSE 0 END) AS total_substation_input,
+    SUM(CASE WHEN AM.maeling_type = 'Úttekt' THEN AM.gildi_kwh ELSE 0 END) AS total_withdrawal
 FROM raforka_updated.allar_maelingar AM
 GROUP BY
     power_plant_source,
@@ -73,35 +73,3 @@ GROUP BY
     MPL.power_plant_source
 ORDER BY
     MPL.power_plant_source;
-
-
-CREATE OR REPLACE VIEW raforka_updated.allar_maelingar AS
-SELECT
-    PP.heiti,
-    M.timi,
-    M.gildi_kwh,
-    CASE
-        WHEN U.ID IS NOT NULL THEN 'Úttekt'
-        WHEN I.ID IS NOT NULL THEN 'Innmötun'
-        WHEN F.ID IS NOT NULL THEN 'Framleiðsla'
-        ELSE 'Óþekkt'
-    END AS tegund_maelingar
-FROM raforka_updated.maelingar M
-LEFT JOIN raforka_updated.stod PP ON M.power_plant_ID = PP.ID
-LEFT JOIN raforka_updated.uttekt U ON M.ID = U.ID
-LEFT JOIN raforka_updated.innmotun I ON M.ID = I.ID
-LEFT JOIN raforka_updated.framleidsla F ON M.ID = F.ID;
-
-CREATE OR REPLACE VIEW raforka_updated.allar_maelingar AS
-SELECT
-    PP.heiti,
-    M.timi,
-    M.gildi_kwh,
-    CASE
-        WHEN EXISTS (SELECT 1 FROM raforka_updated.uttekt U WHERE U.ID = M.ID) THEN 'Úttekt'
-        WHEN EXISTS (SELECT 1 FROM raforka_updated.innmotun I WHERE I.ID = M.ID) THEN 'Innmötun'
-        WHEN EXISTS (SELECT 1 FROM raforka_updated.framleidsla F WHERE F.ID = M.ID) THEN 'Framleiðsla'
-        ELSE 'Óþekkt'
-    END AS tegund_maelingar
-FROM raforka_updated.maelingar M
-LEFT JOIN raforka_updated.stod PP ON M.power_plant_ID = PP.ID;

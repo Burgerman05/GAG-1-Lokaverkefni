@@ -156,7 +156,7 @@ SELECT
     eining_heiti AS power_plant_source,
     EXTRACT(YEAR FROM timi) AS year,
     EXTRACT(MONTH FROM timi) AS month,
-    tegund_maelingar AS test_measurement_type,
+    tegund_maelingar AS measurement_type,
     SUM(gildi_kwh) AS total_kwh
 FROM
     raforka_legacy.orku_maelingar
@@ -173,8 +173,10 @@ ORDER BY
     total_kwh DESC;
     """)
 
-    results = db.execute(sql, {"from_date": from_date, "to_date": to_date}).all()
-    return [MonthlyPlantEnergyFlowModel.model_validate_json(**row) for row in results]
+    results = (
+        db.execute(sql, {"from_date": from_date, "to_date": to_date}).mappings().all()
+    )
+    return [MonthlyPlantEnergyFlowModel.model_validate(row) for row in results]
 
 
 """
@@ -208,8 +210,10 @@ ORDER BY
     om.notandi_heiti ASC;
     """)
 
-    results = db.execute(sql, {"from_date": from_date, "to_date": to_date}).all()
-    return [MonthlyCompanyUsageModel.model_validate_json(**row) for row in results]
+    results = (
+        db.execute(sql, {"from_date": from_date, "to_date": to_date}).mappings().all()
+    )
+    return [MonthlyCompanyUsageModel.model_validate(row) for row in results]
 
 
 """
@@ -226,10 +230,12 @@ SELECT
     AVG((total_production - total_substation_input)::FLOAT / NULLIF(total_production, 0)) AS plant_to_substation_loss_ratio,
     AVG((total_production - total_withdrawal)::FLOAT / NULLIF(total_production, 0)) AS total_system_loss_ratio
 FROM raforka_legacy.monthly_plant_losses
-WHERE timi BETWEEN :from_date AND :to_date
+WHERE year BETWEEN EXTRACT(YEAR FROM :from_date) AND EXTRACT(YEAR FROM :to_date)
 GROUP BY power_plant_source
 ORDER BY power_plant_source;
         """)
 
-    results = db.execute(sql, {"from_date": from_date, "to_date": to_date}).all()
-    return [MonthlyPlantLossRatiosModel.model_validate_json(**row) for row in results]
+    results = (
+        db.execute(sql, {"from_date": from_date, "to_date": to_date}).mappings().all()
+    )
+    return [MonthlyPlantLossRatiosModel.model_validate(row) for row in results]

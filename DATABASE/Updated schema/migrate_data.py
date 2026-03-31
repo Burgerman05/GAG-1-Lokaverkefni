@@ -133,113 +133,14 @@ def migrate_entities() -> None:
         conn.close()
 
 
-def migrate_measurements(csv_path: str) -> None:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # 1. Load Data
-        df_measurements = pl.read_csv(csv_path)
-
-        # Load necessary ID maps from DB
-        df_stod = pl.read_database(
-            "SELECT id as plant_id, heiti as eining_heiti FROM raforka_updated.stod",
-            conn,
-        )
-        df_subs = pl.read_database(
-            "SELECT id as sub_id, heiti as sendandi_maelingar FROM raforka_updated.stod",
-            conn,
-        )
-        df_owners = pl.read_database(
-            "SELECT id as owner_id, heiti as sendandi_maelingar FROM raforka_updated.eigandi",
-            conn,
-        )
-        df_users = pl.read_database(
-            "SELECT id as user_id, heiti as notandi_heiti FROM raforka_updated.notendur_skraning",
-            conn,
-        )
-
-        # 2. Join IDs onto measurement data
-        df_enriched = df_measurements.join(df_stod, on="eining_heiti", how="left")
-        df_enriched = df_enriched.join(df_users, on="notandi_heiti", how="left")
-
-        # 3. Batch Insert into Base Table (maelingar)
-        for row in df_enriched.iter_rows(named=True):
-            # Insert base record and get generated ID
-            m_type = row["tegund_maelingar"].strip()
-            cursor.execute(
-                """INSERT INTO raforka_updated.maelingar (power_plant_ID, gildi_kwh, timi, maeling_type)
-                   VALUES (%s, %s, %s, %s) RETURNING id""",
-                (
-                    row["plant_id"],
-                    row["gildi_kwh"],
-                    row["timi"],
-                    m_type,
-                ),
-            )
-            new_id = cursor.fetchone()[0]
-
-            # 4. Insert into sub-tables based on type
-            if m_type == "Úttekt":
-                sendandi_id = (
-                    df_subs.filter(
-                        pl.col("sendandi_maelingar") == row["sendandi_maelingar"]
-                    )
-                    .select("sub_id")
-                    .item()
-                )
-                cursor.execute(
-                    "INSERT INTO raforka_updated.uttekt (id, sendandi_maelingar, notandi_id) VALUES (%s, %s, %s)",
-                    (new_id, sendandi_id, row["user_id"]),
-                )
-
-            elif m_type == "Innmötun":
-                sendandi_id = (
-                    df_subs.filter(
-                        pl.col("sendandi_maelingar") == row["sendandi_maelingar"]
-                    )
-                    .select("sub_id")
-                    .item()
-                )
-                cursor.execute(
-                    "INSERT INTO raforka_updated.innmotun (id, sendandi_maelingar) VALUES (%s, %s)",
-                    (new_id, sendandi_id),
-                )
-
-            elif m_type == "Framleiðsla":
-                sendandi_id = (
-                    df_owners.filter(
-                        pl.col("sendandi_maelingar") == row["sendandi_maelingar"]
-                    )
-                    .select("owner_id")
-                    .item()
-                )
-                cursor.execute(
-                    "INSERT INTO raforka_updated.framleidsla (id, sendandi_maelingar) VALUES (%s, %s)",
-                    (new_id, sendandi_id),
-                )
-
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Error during measurement migration: {e}")
-    finally:
-        cursor.close()
-        conn.close()
-
-
 def migrate_measurements_from_legacy_db() -> None:
-    """Migrates measurement data from legacy tables to the updated schema structure."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        # 1. Load Legacy Measurements into Polars
         query_legacy = "SELECT * FROM raforka_legacy.orku_maelingar"
         df_measurements = pl.read_database(query_legacy, conn)
 
-        # 2. Load mapping tables from the updated schema
-        # We need these to translate text names into the new integer IDs
         df_stod = pl.read_database(
             "SELECT id as plant_id, heiti as eining_heiti FROM raforka_updated.stod",
             conn,
@@ -257,13 +158,10 @@ def migrate_measurements_from_legacy_db() -> None:
             conn,
         )
 
-        # 3. Join IDs onto the measurement data for the base table and users
         df_enriched = df_measurements.join(df_stod, on="eining_heiti", how="left")
         df_enriched = df_enriched.join(df_users, on="notandi_heiti", how="left")
 
-        # 4. Iterate and Insert
         for row in df_enriched.iter_rows(named=True):
-            # Insert into the base 'maelingar' table first to get the generated ID
             m_type = row["tegund_maelingar"].strip() if row["tegund_maelingar"] else ""
             cursor.execute(
                 """INSERT INTO raforka_updated.maelingar (power_plant_ID, gildi_kwh, timi, maeling_type)
@@ -272,9 +170,7 @@ def migrate_measurements_from_legacy_db() -> None:
             )
             new_measurement_id = cursor.fetchone()[0]
 
-            # 5. Route to specialized sub-tables based on legacy 'tegund_maelingar'
             if m_type == "Úttekt":
-                # Lookup the sender ID in the substation mapping
                 sender_matches = df_subs.filter(
                     pl.col("sendandi_maelingar") == row["sendandi_maelingar"]
                 )
@@ -297,7 +193,6 @@ def migrate_measurements_from_legacy_db() -> None:
                     )
 
             elif m_type == "Framleiðsla":
-                # For production, the sender name refers to an owner (eigandi)
                 sender_matches = df_owners.filter(
                     pl.col("sendandi_maelingar") == row["sendandi_maelingar"]
                 )
@@ -322,4 +217,3 @@ def migrate_measurements_from_legacy_db() -> None:
 if __name__ == "__main__":
     migrate_entities()
     migrate_measurements_from_legacy_db()
-    # migrate_measurements("measurements_2026.csv")

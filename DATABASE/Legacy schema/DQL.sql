@@ -1,5 +1,5 @@
 -- Task A2
---nr 1
+-- nr 1
 SELECT
     eining_heiti AS power_plant_source,
     EXTRACT(YEAR FROM timi) AS year,
@@ -21,7 +21,7 @@ ORDER BY
 -- LIMIT 50;
 -- Viljum flokka eftir hverri orkuveitu, fyrir hvern mánðuð, samtals orkan frá hverjum flokk
 
---nr 2
+-- nr 2
 SELECT
     om.eining_heiti AS power_plant_source,
     EXTRACT(YEAR FROM om.timi) AS year,
@@ -35,15 +35,15 @@ WHERE
     AND om.notandi_heiti IS NOT NULL
 GROUP BY
     om.eining_heiti,
-    EXTRACT(YEAR FROM om.timi),
-    EXTRACT(MONTH FROM om.timi),
+    year,
+    month,
     om.notandi_heiti
 ORDER BY
-    om.eining_heiti ASC,
+    om.eining_heiti,
     month ASC,
     om.notandi_heiti ASC;
 
---nr 3
+-- nr 3
 CREATE OR REPLACE VIEW raforka_legacy.monthly_plant_losses AS
 SELECT
     eining_heiti AS power_plant_source,
@@ -55,8 +55,9 @@ SELECT
 FROM raforka_legacy.orku_maelingar
 GROUP BY
     eining_heiti,
-    EXTRACT(YEAR FROM timi),
-    EXTRACT(MONTH FROM timi);
+    year,
+    month;
+
 SELECT
     power_plant_source,
     AVG((total_production - total_substation_input)::FLOAT / NULLIF(total_production, 0)) AS plant_to_substation_loss_ratio,

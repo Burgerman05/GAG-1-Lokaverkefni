@@ -1,6 +1,5 @@
 -- Task C5
 -- # 1
-EXPLAIN ANALYZE
 SELECT
     AM.heiti as power_plant_source,
     EXTRACT(YEAR FROM AM.timi) as year,
@@ -21,7 +20,6 @@ ORDER BY
     total_kwh DESC;
 
 -- # 2
-EXPLAIN ANALYZE
 SELECT
     PP.heiti as power_plant_source,
     EXTRACT(YEAR FROM M.timi) AS year,
@@ -61,7 +59,6 @@ GROUP BY
     month;
 
 -- Query
-EXPLAIN ANALYZE
 SELECT
     MPL.power_plant_source,
     AVG((MPL.total_production - MPL.total_substation_input)::FLOAT / NULLIF(MPL.total_production, 0)) AS plant_to_substation_loss_ratio,

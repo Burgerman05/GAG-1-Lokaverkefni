@@ -91,8 +91,8 @@ def insert_rows(data: Iterator[OldMeasurementData], db: Session) -> int:
     processed = 0
     for row in data:
         try:
-            insert_single_row(row, db)
-            processed += 1
+            if insert_single_row(row, db):
+                processed += 1
         except Exception:
             db.rollback()
             continue

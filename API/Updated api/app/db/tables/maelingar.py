@@ -12,9 +12,9 @@ class Maelingar(Base):
     __tablename__ = "maelingar"
     __table_args__ = (Index("idx_maelingar", "timi", "power_plant_id"),)
 
-    ID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     power_plant_id: Mapped[int] = mapped_column(
-        ForeignKey("power_plant.ID"), nullable=False
+        ForeignKey("power_plant.id"), nullable=False
     )
     gildi_kwh: Mapped[Decimal] = mapped_column(Numeric, nullable=False)
     timi: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -32,11 +32,11 @@ class Maelingar(Base):
 class Uttekt(Maelingar):
     __tablename__ = "uttekt"
 
-    id: Mapped[int] = mapped_column(ForeignKey("maelingar.ID"), primary_key=True)
+    id: Mapped[int] = mapped_column(ForeignKey("maelingar.id"), primary_key=True)
     sendandi_maelingar: Mapped[int] = mapped_column(
-        ForeignKey("substation.ID"), nullable=False
+        ForeignKey("substation.id"), nullable=False
     )
-    notandi_id: Mapped[int] = mapped_column(ForeignKey("eigandi.ID"), nullable=False)
+    notandi_id: Mapped[int] = mapped_column(ForeignKey("eigandi.id"), nullable=False)
 
     __mapper_args__ = {
         "polymorphic_identity": "uttekt",
@@ -46,9 +46,9 @@ class Uttekt(Maelingar):
 class Innmotun(Maelingar):
     __tablename__ = "innmotun"
 
-    id: Mapped[int] = mapped_column(ForeignKey("maelingar.ID"), primary_key=True)
+    id: Mapped[int] = mapped_column(ForeignKey("maelingar.id"), primary_key=True)
     sendandi_maelingar: Mapped[int] = mapped_column(
-        ForeignKey("substation.ID"), nullable=False
+        ForeignKey("substation.id"), nullable=False
     )
 
     __mapper_args__ = {
@@ -59,9 +59,9 @@ class Innmotun(Maelingar):
 class Framleidsla(Maelingar):
     __tablename__ = "framleidsla"
 
-    id: Mapped[int] = mapped_column(ForeignKey("maelingar.ID"), primary_key=True)
+    id: Mapped[int] = mapped_column(ForeignKey("maelingar.id"), primary_key=True)
     sendandi_maelingar: Mapped[int] = mapped_column(
-        ForeignKey("eigandi.ID"), nullable=False
+        ForeignKey("eigandi.id"), nullable=False
     )
 
     __mapper_args__ = {

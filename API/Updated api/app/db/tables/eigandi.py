@@ -9,7 +9,7 @@ from app.db.base import Base
 class Eigandi(Base):
     __tablename__ = "eigandi"
 
-    ID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     heiti: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
 
     stodvar: Mapped[list[stod.Stod]] = relationship(back_populates="eigandi")

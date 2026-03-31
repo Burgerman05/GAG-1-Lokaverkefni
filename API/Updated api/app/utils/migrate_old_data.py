@@ -11,26 +11,28 @@ from app.models.parsed_data.old_measurement_data import OldMeasurementData
 
 def insert_single_row(new_data: OldMeasurementData, db: Session) -> bool:
     power_plant_id = db.scalars(
-        select(Stod.ID).where(Stod.heiti == new_data.eining_heiti)
+        select(Stod.id).where(Stod.heiti == new_data.eining_heiti)
     ).first()
 
     if power_plant_id is None:
         return False
 
-    maeling_id = (
-        db.execute(
-            insert(Maelingar)
-            .values(
-                power_plant_id=power_plant_id,
-                timi=new_data.timi,
-                gildi_kwh=new_data.gildi_kwh,
-                maeling_type=new_data.tegund_maelingar,
-            )
-            .returning(Maelingar.ID)
+    result = db.execute(
+        insert(Maelingar)
+        .values(
+            power_plant_id=power_plant_id,
+            timi=new_data.timi,
+            gildi_kwh=new_data.gildi_kwh,
+            maeling_type=new_data.tegund_maelingar,
         )
-        .fetchall()[0]
-        .tuple()[0]
-    )
+        .returning(Maelingar.id)
+    ).fetchone()
+
+    if result is None:
+        db.rollback()
+        return False
+
+    maeling_id = result.tuple()[0]
 
     match new_data.tegund_maelingar:
         case "Úttekt":
@@ -38,14 +40,14 @@ def insert_single_row(new_data: OldMeasurementData, db: Session) -> bool:
                 return False
 
             notandi_id = db.scalars(
-                select(Eigandi.ID).where(Eigandi.heiti == new_data.notandi_heiti)
+                select(Eigandi.id).where(Eigandi.heiti == new_data.notandi_heiti)
             ).first()
 
             if notandi_id is None:
                 return False
 
             sendandi_id = db.scalars(
-                select(Stod.ID).where(Stod.heiti == new_data.sendandi_maelingar)
+                select(Stod.id).where(Stod.heiti == new_data.sendandi_maelingar)
             ).first()
 
             if sendandi_id is None:
@@ -53,32 +55,32 @@ def insert_single_row(new_data: OldMeasurementData, db: Session) -> bool:
 
             db.execute(
                 insert(Uttekt).values(
-                    ID=maeling_id,
+                    id=maeling_id,
                     sendandi_maelingar=sendandi_id,
                     notandi_id=notandi_id,
                 )
             )
         case "Innmötun":
             sendandi_id = db.scalars(
-                select(Stod.ID).where(Stod.heiti == new_data.sendandi_maelingar)
+                select(Stod.id).where(Stod.heiti == new_data.sendandi_maelingar)
             ).first()
 
             if sendandi_id is None:
                 return False
 
             db.execute(
-                insert(Innmotun).values(ID=maeling_id, sendandi_maelingar=sendandi_id)
+                insert(Innmotun).values(id=maeling_id, sendandi_maelingar=sendandi_id)
             )
         case "Framleiðsla":
             sendandi_id = db.scalars(
-                select(Eigandi.ID).where(Eigandi.heiti == new_data.sendandi_maelingar)
+                select(Eigandi.id).where(Eigandi.heiti == new_data.sendandi_maelingar)
             ).first()
             if sendandi_id is None:
                 return False
 
             db.execute(
                 insert(Framleidsla).values(
-                    ID=maeling_id, sendandi_maelingar=sendandi_id
+                    id=maeling_id, sendandi_maelingar=sendandi_id
                 )
             )
         case _:
